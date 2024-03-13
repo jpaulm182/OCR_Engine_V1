@@ -1,17 +1,15 @@
-from PIL import Image, ImageFilter, ImageOps
 import cv2
 import numpy as np
-import pytesseract
 import os
-from skimage import io
-from skimage.transform import rotate
-from skimage import filters
+import pytesseract
 
-from skimage.util import img_as_ubyte
-from skimage.color import rgb2gray, rgba2rgb
-from skimage.filters import threshold_otsu
+from PIL import Image, ImageFilter, ImageOps
+from imutils import grab_contours
+from skimage import io, transform, util, color, morphology
+from skimage.filters import threshold_otsu, rank
 from skimage.filters import median
 from skimage.morphology import disk
+from skimage.color import rgba2rgb, rgb2gray
 
 def deskew_image(image_path):
     #the image must be 3 channel (RGB) for the deskew function to work
@@ -29,98 +27,85 @@ def deskew_image(image_path):
     noise_reduced = median(gray, selem) 
 
     # Apply binarization
-    thresh = threshold_otsu(noise_reduced) #thresholding using otsu's method which is a global thresholding method that assumes a bimodal distribution of pixel intensities because it is a good way to separate the background from the foreground
-    binary = noise_reduced > thresh #binary is a boolean array where True is the foreground and False is the background
+    thresh = threshold_otsu(noise_reduced) 
+    binary = noise_reduced > thresh 
 
-    '''# Apply edge detection
-    edges = cv2.Canny(img_as_ubyte(binary), 100, 255, apertureSize=3)
-    #invert image
-    edges = cv2.bitwise_not(edges)
-    '''    
-    # Apply deskew
-    angle = filters.try_all_threshold(binary, figsize=(10, 8))
-    print(angle) #try_all_threshold is a function that tries all the thresholding methods available in scikit-image
-    #return the path of the deskewed image
-    #save the deskewed image to a file in the same directory as the image
+    # Convert to uint8
+    binary = (binary * 255).astype(np.uint8)
+
+    # Calculate the skew angle
+    coords = np.column_stack(np.where(binary > 0))
+    angle = cv2.minAreaRect(coords)[-1]
+    if angle < -45:
+        angle = -(90 + angle)
+    elif angle > 45:
+        angle = 90 - angle
+    else:
+        angle = -angle
+
+    print(f"Skew adjustment: {angle} degrees")
+
+    # Rotate the image to deskew it
+    (h, w) = binary.shape[:2]
+    center = (w // 2, h // 2)
+    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+    deskewed = cv2.warpAffine(binary, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+
+    # Save the deskewed image
     deskewed_path = os.path.splitext(image_path)[0] + '_deskewed.png'
-    #conert the image to a PIL image
-    deskewed = Image.fromarray(binary)
+    deskewed = Image.fromarray(deskewed)
     deskewed.save(deskewed_path)
 
     return deskewed_path
 
-def get_text_regions(image_path: str):
-    #get blocks of text regions from the image to be used as a mask
-    #use tesseract
-    image = Image.open(image_path)
-    text = pytesseract.image_to_boxes(image)
-    text_regions = []
-    for line in text.split('\n'):
-        if line:
-            _, x, y, w, h, _ = line.split(' ')
-            text_regions.append((int(x), int(y), int(w), int(h)))
-    return text_regions
-
-def load_image(image_path):
+def erase_left_margin(image_path, left_margin):
     image = cv2.imread(image_path)
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    return image, gray
-
-def create_mask(gray, text_regions):
-    mask = np.zeros_like(gray)
-    for region in text_regions:
-        x, y, w, h = region
-        mask[y:y+h, x:x+w] = 255
-    return mask
-
-def erase_left_margin(image, left_margin):
-    image[:, :left_margin] = 255
+    image[:, :left_margin] = 255 #
     return image
 
-def detect_lines(gray, mask, minLineLength, maxLineGap):
-    '''edges = cv2.Canny(gray, 50, 150, apertureSize=3) #apertureSize is the size of the Sobel kernel used to find image gradients'''
-    lines = cv2.HoughLinesP(gray, 1, np.pi/180, 100, minLineLength=100, maxLineGap=15 )
-    return lines
-
-def remove_lines(image, lines, mask):
-    if lines is not None:
-        for line in lines:
-            x1, y1, x2, y2 = line[0]
-            if mask[y1, x1] == 0 and mask[y2, x2] == 0:  # Only remove lines outside text regions
-                cv2.line(image, (x1, y1), (x2, y2), (255, 255, 255), 5)
-    return image
-
-def detect_and_remove_boxes(image, mask):
-    #convert the image to CV_8UC1
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    contours, _ = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    for cnt in contours:
+def detect_and_remove_boxes(image_path):
+    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    contours = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours = grab_contours(contours)
+    large_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 1000]
+    for cnt in large_contours:
         x, y, w, h = cv2.boundingRect(cnt)
-        if cv2.contourArea(cnt) > 1000 and mask[y + h//2, x + w//2] == 0:  # Large area and outside text regions
-            cv2.rectangle(image, (x, y), (x + w, y + h), (255, 255, 255), -1)
-    return image
-
-def save_image(image, image_path):
+        cv2.rectangle(image, (x, y), (x + w, y + h), (255, 255, 255), 4)
     result = Image.fromarray(image)
-    result_path = os.path.splitext(image_path)[0] + '_cleaned.png'
+    result_path = os.path.splitext(image_path)[0] + '_boxes_removed.png'
     result.save(result_path)
     return result_path
 
-def remove_lines_and_boxes(image_path, left_margin, minLineLength, maxLineGap):
-    text_regions = get_text_regions(image_path=image_path)
-    image, gray = load_image(image_path=image_path)
-    mask = create_mask(gray=gray, text_regions=text_regions)
-    image = erase_left_margin(image=image, left_margin=left_margin)
-    lines = detect_lines(gray=gray, mask=mask, minLineLength=minLineLength, maxLineGap=maxLineGap)
-    image = remove_lines(image=image, lines=lines, mask=mask)
-    image = detect_and_remove_boxes(image=image, mask=mask)
-    result_path = save_image(image=image, image_path=image_path)
-    #save the mask to a file in the same directory as the image
-    mask_path = os.path.splitext(image_path)[0] + '_mask.png'
-    io.imsave(mask_path, mask)
+def remove_lines(image_path, left_margin, threshold, minLineLength, maxLineGap):
+    #remove the left margin
+    image = erase_left_margin(image_path, left_margin)
+    #convert the image to a numpy array
+    image = np.array(image)
+    #Create a mask based on the regions with text so that the text is not modified
+    mask = np.zeros(image.shape, dtype=np.uint8)
+    #convert the image to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    #apply edge detection
+    edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+    #apply Hough Line Transform
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold, minLineLength, maxLineGap) #rho is the distance resolution of the accumulator in pixels, theta is the angle resolution of the accumulator in radians, threshold is the minimum number of intersections in a grid for a line to be detected, minLineLength is the minimum number of points that can form a line, maxLineGap is the maximum gap between two points to be considered in the same line
+    # Assuming that 'image' is your input image
+    height, width = image.shape[:2]
+    mask = np.zeros((height, width), dtype=np.uint8)
+
+    # Now you can draw lines on the mask
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+        cv2.line(mask, (x1, y1), (x2, y2), (255), 8)
+# Now the mask should be in the correct format for cv2.inpaint
+    image = cv2.inpaint(image, mask, 3, cv2.INPAINT_TELEA)
     #save the result to a file in the same directory as the image
     result = Image.fromarray(image)
-    result_path = os.path.splitext(image_path)[0] + '_cleaned.png'
+    result_path = os.path.splitext(image_path)[0] + '_lines_removed.png'
     result.save(result_path)
-    
     return result_path
+
+    
+
+
+    

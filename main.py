@@ -5,8 +5,9 @@ from PIL import Image
 from pdf2image import convert_from_path
 from pdf_processor import extract_text_from_pdf
 from ocr_engine import ocr_image
-from image_preprocessor import deskew_image, get_text_regions, remove_lines_and_boxes
+from image_preprocessor import deskew_image, remove_lines, detect_and_remove_boxes
 from post_processor import correct_ocr_errors, remove_unwanted_characters
+from skimage.color import rgb2gray
 
 def ensure_directory_exists(directory):
     if not os.path.exists(directory):
@@ -21,16 +22,15 @@ def convert_pdf_to_images(pdf_path, output_dir, dpi=350):
         image_paths.append(image_path)
     return image_paths
 
-def preprocess_image(image_path):   
+def preprocess_image(image_path): 
+    # Adjust path to normal format for the operating system
+    image_path = os.path.normpath(image_path) 
     processed_image_path = deskew_image(image_path)
-    print(f"Processed image path: {processed_image_path}")
-    #save the processed image to a file in the same directory as the image
-    processed_image_path = os.path.splitext(image_path)[0] + '_deskewed.png'
+    processed_image_path = detect_and_remove_boxes(processed_image_path)
+    processed_image_path = remove_lines(processed_image_path,200, 100,200, 20)
+    processed_image_path = remove_lines(processed_image_path, 200, 75,30, 10)
     
-    processed_image_path = remove_lines_and_boxes(processed_image_path, left_margin=200,minLineLength=100, maxLineGap=15)
-    
-    processed_image_path = remove_lines_and_boxes(processed_image_path, left_margin=200, minLineLength=20, maxLineGap=20)
-   
+    print(f"Processed image path3: {processed_image_path}")
     return processed_image_path
 
 def postprocess_ocr_result(ocr_result):
