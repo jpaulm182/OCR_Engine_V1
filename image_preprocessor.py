@@ -174,7 +174,7 @@ def detect_and_remove_boxes(image_path, line_thickness, min_area, min_aspect_rat
 
     return result_path
 
-def remove_lines(image_path, left_margin, line_thickness=8):
+def remove_lines(image_path, left_margin, min_width, min_height, max_width, max_height):
     #remove the left margin
     image = erase_left_margin(image_path, left_margin)
     #convert the image to a numpy array
@@ -183,23 +183,19 @@ def remove_lines(image_path, left_margin, line_thickness=8):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     
     # Use Tesseract to get bounding boxes
-    d = pytesseract.image_to_data(gray, output_type=pytesseract.Output.DICT)
+    d = pytesseract.image_to_data(gray, output_type=pytesseract.Output.DICT, lang='eng', config='--psm 6')
     n_boxes = len(d['level'])
     mask = np.zeros(image.shape, dtype=np.uint8)
     
-    max_width = 500  # Maximum width of a bounding box
-    max_height = 500  # Maximum height of a bounding box
-
     for i in range(n_boxes):
         (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
         # Check if the bounding box is within the size limits
-        if w <= max_width and h <= max_height:
+        if min_width <= w <= max_width and min_height <= h <= max_height:
             #color = white
             color = (255, 255, 255)
             cv2.rectangle(mask, pt1=(x, y), pt2=(x + w, y + h), color = color, thickness=-1, lineType=8)
     # Convert the mask to grayscale
     mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-    #save the mask as an image file
     #invert the mask
     mask = cv2.bitwise_not(mask)
     mask_path = os.path.splitext(image_path)[0] + '_line_mask.png'
@@ -210,17 +206,13 @@ def remove_lines(image_path, left_margin, line_thickness=8):
     #invert mask 
     mask = cv2.bitwise_not(mask)
     #analyze gray and turn all pixels that are not in the mask to white
-    for i in range(image.shape[0]):
-        for j in range(image.shape[1]):
-            if mask[i][j] != 255:
-                image[i][j] = 255
+    image[mask != 255] = 255
     #save the result to a file in the same directory as the image
     result = Image.fromarray(image)
     result_path = os.path.splitext(image_path)[0] + '_lines_removed.png'
     result.save(result_path)
        
-    return result_path
-    
+    return result_path    
 
 
     
