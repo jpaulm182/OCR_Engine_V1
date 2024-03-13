@@ -88,7 +88,7 @@ def erase_left_margin(image_path, left_margin):
     image[:, :left_margin] = 255 #
     return image
 
-def detect_and_visualize_boxes(image_path, line_thickness=5, min_area=12000):
+def detect_and_visualize_boxes(image_path, line_thickness=2):
     # Read the image in grayscale
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     # Create a copy of the image to draw on
@@ -116,9 +116,8 @@ def detect_and_visualize_boxes(image_path, line_thickness=5, min_area=12000):
         extent = cv2.contourArea(contour) / float(cv2.contourArea(cv2.convexHull(contour)))
 
         # If the contour has an aspect ratio approximately equal to 1, and solidity and extent are high, it's likely a box
-        # Also check if the area of the rectangle is greater than the minimum area
-        if 0.8 <= aspect_ratio <= 1.2 and solidity > 0.9 and extent > 1.0 and w * h > min_area:
-            cv2.rectangle(image_copy, (x, y), (x + w, y + h), 255, line_thickness) #solidity is the ratio of the contour area to the area of the bounding rectangle.  Extent is the ratio of the contour area to the area of the bounding box
+        if 0.9 <= aspect_ratio <= 1.1 and solidity > 0.9 and extent > 0.9:
+            cv2.rectangle(image_copy, (x, y), (x + w, y + h), 255, line_thickness)
 
     # Save the result
     result_path = os.path.splitext(image_path)[0] + '_detected_boxes.png'
@@ -126,7 +125,7 @@ def detect_and_visualize_boxes(image_path, line_thickness=5, min_area=12000):
 
     return result_path
 
-def detect_and_remove_boxes(image_path, line_thickness=2, min_area=10000):
+def detect_and_remove_boxes(image_path, line_thickness=2, size_threshold=100, aspect_ratio_threshold=1.5):
     # Read the image in color
     image = cv2.imread(image_path)
 
@@ -151,8 +150,8 @@ def detect_and_remove_boxes(image_path, line_thickness=2, min_area=10000):
         # Calculate bounding rectangle for the contour
         x, y, w, h = cv2.boundingRect(contour)
 
-        # Check if the area of the rectangle is above the minimum area
-        if w * h > min_area:
+        # Check if the contour is large enough to be a box and has a high enough aspect ratio
+        if w * h > size_threshold and max(w, h) / min(w, h) > aspect_ratio_threshold:
             # Draw the rectangle on the image
             cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), line_thickness)
 
