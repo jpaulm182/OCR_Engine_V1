@@ -27,8 +27,8 @@ def preprocess_image(image_path):
     image_path = os.path.normpath(image_path) 
     processed_image_path = deskew_image(image_path)
     processed_image_path = detect_and_remove_boxes(processed_image_path)
-    processed_image_path = remove_lines(processed_image_path,200, 100,200, 20)
-    processed_image_path = remove_lines(processed_image_path, 200, 75,50, 20)
+    processed_image_path = remove_lines(processed_image_path,200, 125,200, 10)
+    processed_image_path = remove_lines(processed_image_path, 200, 100,50, 15)
     
     print(f"Processed image path3: {processed_image_path}")
     return processed_image_path
