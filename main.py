@@ -28,9 +28,9 @@ def preprocess_image(image_path):
     processed_image_path = threshold_image(image_path)
     #processed_image_path = binarize_image(processed_image_path)
     processed_image_path = deskew_image(processed_image_path)   
-    #processed_image_path = detect_and_visualize_boxes(processed_image_path, 10)
-    processed_image_path = detect_and_remove_boxes(processed_image_path, 25)
-    #processed_image_path = remove_lines(processed_image_path,200, 8)
+    #processed_image_path = detect_and_visualize_boxes(processed_image_path, 8, 8000, .1, 20)
+    processed_image_path = detect_and_remove_boxes(processed_image_path, 30, 8000, .1, 20, 3)
+    processed_image_path = remove_lines(processed_image_path,200, 5)
     #processed_image_path = remove_lines(processed_image_path, 200, 8)
     
     print(f"Processed image path3: {processed_image_path}")

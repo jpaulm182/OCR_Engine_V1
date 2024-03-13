@@ -88,45 +88,7 @@ def erase_left_margin(image_path, left_margin):
     image[:, :left_margin] = 255 #
     return image
 
-def detect_and_visualize_boxes(image_path, line_thickness=5, min_area=12000):
-    # Read the image in grayscale
-    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    # Create a copy of the image to draw on
-    image_copy = image.copy()
-
-    # Apply Gaussian blur
-    blurred = cv2.GaussianBlur(image, (5, 5), 0)
-
-    # Use Canny edge detection
-    edged = cv2.Canny(blurred, 50, 200, 255)
-
-    # Perform dilation and erosion to close gaps in between object edges
-    dilated_edged = cv2.dilate(edged.copy(), None, iterations=2)
-    eroded_edged = cv2.erode(dilated_edged.copy(), None, iterations=1)
-
-    # Find contours in the image
-    contours, _ = cv2.findContours(eroded_edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Loop over the contours
-    for contour in contours:
-        # Calculate aspect ratio, solidity, and extent of the contour
-        x, y, w, h = cv2.boundingRect(contour)
-        aspect_ratio = w / float(h)
-        solidity = cv2.contourArea(contour) / float(w * h)
-        extent = cv2.contourArea(contour) / float(cv2.contourArea(cv2.convexHull(contour)))
-
-        # If the contour has an aspect ratio approximately equal to 1, and solidity and extent are high, it's likely a box
-        # Also check if the area of the rectangle is greater than the minimum area
-        if 0.8 <= aspect_ratio <= 1.2 and solidity > 0.9 and extent > 1.0 and w * h > min_area:
-            cv2.rectangle(image_copy, (x, y), (x + w, y + h), 255, line_thickness) #solidity is the ratio of the contour area to the area of the bounding rectangle.  Extent is the ratio of the contour area to the area of the bounding box
-
-    # Save the result
-    result_path = os.path.splitext(image_path)[0] + '_detected_boxes.png'
-    cv2.imwrite(result_path, image_copy)
-
-    return result_path
-
-def detect_and_remove_boxes(image_path, line_thickness=2, min_area=10000):
+def detect_and_visualize_boxes(image_path, line_thickness=8, min_area=8000, min_aspect_ratio=.5, max_aspect_ratio=10):
     # Read the image in color
     image = cv2.imread(image_path)
 
@@ -151,14 +113,64 @@ def detect_and_remove_boxes(image_path, line_thickness=2, min_area=10000):
         # Calculate bounding rectangle for the contour
         x, y, w, h = cv2.boundingRect(contour)
 
-        # Check if the area of the rectangle is above the minimum area
-        if w * h > min_area:
+        # Calculate the aspect ratio
+        aspect_ratio = float(w) / h
+
+        # Check if the area of the rectangle is above the minimum area and the aspect ratio is within the specified range
+        if w * h > min_area and min_aspect_ratio <= aspect_ratio <= max_aspect_ratio:
             # Draw the rectangle on the image
             cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), line_thickness)
 
     # Save the result
     result_path = os.path.splitext(image_path)[0] + '_boxes_detected.png'
     cv2.imwrite(result_path, image)
+
+    return result_path
+
+import numpy as np
+
+def detect_and_remove_boxes(image_path, line_thickness, min_area, min_aspect_ratio, max_aspect_ratio, inpaint_radius):
+    # Read the image in color
+    image = cv2.imread(image_path)
+
+    # Convert the image to grayscale for processing
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Apply Gaussian blur
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # Use Canny edge detection
+    edged = cv2.Canny(blurred, 50, 200, 255)
+
+    # Perform dilation and erosion to close gaps in between object edges
+    dilated_edged = cv2.dilate(edged.copy(), None, iterations=2)
+    eroded_edged = cv2.erode(dilated_edged.copy(), None, iterations=1)
+
+    # Find contours in the image
+    contours, _ = cv2.findContours(eroded_edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Create a mask for inpainting
+    mask = np.zeros_like(gray)
+
+    # Loop over the contours
+    for contour in contours:
+        # Calculate bounding rectangle for the contour
+        x, y, w, h = cv2.boundingRect(contour)
+
+        # Calculate the aspect ratio
+        aspect_ratio = float(w) / h
+
+        # Check if the area of the rectangle is above the minimum area and the aspect ratio is within the specified range
+        if w * h > min_area and min_aspect_ratio <= aspect_ratio <= max_aspect_ratio:
+            # Add the rectangle to the mask, but only the outline with the specified line thickness
+            cv2.rectangle(mask, pt1 =(x, y), pt2=(x+w, y+h), color=255, thickness=line_thickness, lineType= 8)  #lineType is the thickness of the line so that the mask is not filled
+
+    # Inpaint the image using the mask
+    inpainted_image = cv2.inpaint(image, mask, inpaint_radius, cv2.INPAINT_TELEA)
+
+    # Save the result
+    result_path = os.path.splitext(image_path)[0] + '_boxes_removed.png'
+    cv2.imwrite(result_path, inpainted_image)
 
     return result_path
 
@@ -174,28 +186,40 @@ def remove_lines(image_path, left_margin, line_thickness=8):
     d = pytesseract.image_to_data(gray, output_type=pytesseract.Output.DICT)
     n_boxes = len(d['level'])
     mask = np.zeros(image.shape, dtype=np.uint8)
+    
+    max_width = 500  # Maximum width of a bounding box
+    max_height = 500  # Maximum height of a bounding box
+
     for i in range(n_boxes):
         (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
-        cv2.rectangle(mask, (x, y), (x + w, y + h), (255), -1)
-    
+        # Check if the bounding box is within the size limits
+        if w <= max_width and h <= max_height:
+            #color = white
+            color = (255, 255, 255)
+            cv2.rectangle(mask, pt1=(x, y), pt2=(x + w, y + h), color = color, thickness=-1, lineType=8)
     # Convert the mask to grayscale
     mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+    #save the mask as an image file
+    #invert the mask
+    mask = cv2.bitwise_not(mask)
+    mask_path = os.path.splitext(image_path)[0] + '_line_mask.png'
+    cv2.imwrite(mask_path, mask)
     
-    # Now the mask should be in the correct format for cv2.inpaint
-    image = cv2.inpaint(image, mask, 3, cv2.INPAINT_TELEA) # Use the Telea algorithm to inpaint the image
-    #now detect lines and erase except for the mask area
-    edges = cv2.Canny(image, 50, 150, apertureSize=3)
-    lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength=100, maxLineGap=10)
-    for line in lines:
-        x1, y1, x2, y2 = line[0]
-        cv2.line(image, (x1, y1), (x2, y2), (255, 255, 255), line_thickness)
-
+    #Start with the original image and change every pixel that is not in the mask to white
+    image = gray
+    #invert mask 
+    mask = cv2.bitwise_not(mask)
+    #analyze gray and turn all pixels that are not in the mask to white
+    for i in range(image.shape[0]):
+        for j in range(image.shape[1]):
+            if mask[i][j] != 255:
+                image[i][j] = 255
     #save the result to a file in the same directory as the image
     result = Image.fromarray(image)
     result_path = os.path.splitext(image_path)[0] + '_lines_removed.png'
     result.save(result_path)
+       
     return result_path
-
     
 
 
