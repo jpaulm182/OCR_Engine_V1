@@ -187,13 +187,21 @@ def remove_lines(image_path, left_margin, min_width, min_height, max_width, max_
     n_boxes = len(d['level'])
     mask = np.zeros(image.shape, dtype=np.uint8)
     
+    rectangles = []
     for i in range(n_boxes):
         (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
         # Check if the bounding box is within the size limits
         if min_width <= w <= max_width and min_height <= h <= max_height:
-            #color = white
-            color = (255, 255, 255)
-            cv2.rectangle(mask, pt1=(x, y), pt2=(x + w, y + h), color = color, thickness=-1, lineType=8)
+            rectangles.append([x, y, x + w, y + h])
+    
+    # Merge overlapping boxes
+    rectangles, weights = cv2.groupRectangles(rectangles, groupThreshold=1, eps=0.2)
+    
+    for rect in rectangles:
+        #color = white
+        color = (255, 255, 255)
+        cv2.rectangle(mask, pt1=(rect[0], rect[1]), pt2=(rect[2], rect[3]), color = color, thickness=-1, lineType=8)
+    
     # Convert the mask to grayscale
     mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
     #invert the mask
@@ -212,7 +220,6 @@ def remove_lines(image_path, left_margin, min_width, min_height, max_width, max_
     result_path = os.path.splitext(image_path)[0] + '_lines_removed.png'
     result.save(result_path)
        
-    return result_path    
-
+    return result_path
 
     
