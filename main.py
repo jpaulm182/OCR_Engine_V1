@@ -30,7 +30,7 @@ def preprocess_image(image_path):
     processed_image_path = deskew_image(processed_image_path)   
     #processed_image_path = detect_and_visualize_boxes(processed_image_path, 8, 8000, .1, 20)
     #processed_image_path = detect_and_remove_boxes(processed_image_path, 30, 8000, .1, 20, 3)
-    processed_image_path = remove_lines(processed_image_path,left_margin=200, min_width=0, min_height=0, max_width= 1000, max_height=200)
+    #processed_image_path = remove_lines(processed_image_path,left_margin=200, min_width=0, min_height=0, max_width= 1000, max_height=200)
     #processed_image_path = remove_lines(processed_image_path, 200, 8)
     
     print(f"Processed image path3: {processed_image_path}")
