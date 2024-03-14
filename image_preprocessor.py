@@ -88,92 +88,6 @@ def erase_left_margin(image_path, left_margin):
     image[:, :left_margin] = 255 #
     return image
 
-def detect_and_visualize_boxes(image_path, line_thickness=8, min_area=8000, min_aspect_ratio=.5, max_aspect_ratio=10):
-    # Read the image in color
-    image = cv2.imread(image_path)
-
-    # Convert the image to grayscale for processing
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # Apply Gaussian blur
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-
-    # Use Canny edge detection
-    edged = cv2.Canny(blurred, 50, 200, 255)
-
-    # Perform dilation and erosion to close gaps in between object edges
-    dilated_edged = cv2.dilate(edged.copy(), None, iterations=2)
-    eroded_edged = cv2.erode(dilated_edged.copy(), None, iterations=1)
-
-    # Find contours in the image
-    contours, _ = cv2.findContours(eroded_edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Loop over the contours
-    for contour in contours:
-        # Calculate bounding rectangle for the contour
-        x, y, w, h = cv2.boundingRect(contour)
-
-        # Calculate the aspect ratio
-        aspect_ratio = float(w) / h
-
-        # Check if the area of the rectangle is above the minimum area and the aspect ratio is within the specified range
-        if w * h > min_area and min_aspect_ratio <= aspect_ratio <= max_aspect_ratio:
-            # Draw the rectangle on the image
-            cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), line_thickness)
-
-    # Save the result
-    result_path = os.path.splitext(image_path)[0] + '_boxes_detected.png'
-    cv2.imwrite(result_path, image)
-
-    return result_path
-
-import numpy as np
-
-def detect_and_remove_boxes(image_path, line_thickness, min_area, min_aspect_ratio, max_aspect_ratio, inpaint_radius):
-    # Read the image in color
-    image = cv2.imread(image_path)
-
-    # Convert the image to grayscale for processing
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # Apply Gaussian blur
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-
-    # Use Canny edge detection
-    edged = cv2.Canny(blurred, 50, 200, 255)
-
-    # Perform dilation and erosion to close gaps in between object edges
-    dilated_edged = cv2.dilate(edged.copy(), None, iterations=2)
-    eroded_edged = cv2.erode(dilated_edged.copy(), None, iterations=1)
-
-    # Find contours in the image
-    contours, _ = cv2.findContours(eroded_edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Create a mask for inpainting
-    mask = np.zeros_like(gray)
-
-    # Loop over the contours
-    for contour in contours:
-        # Calculate bounding rectangle for the contour
-        x, y, w, h = cv2.boundingRect(contour)
-
-        # Calculate the aspect ratio
-        aspect_ratio = float(w) / h
-
-        # Check if the area of the rectangle is above the minimum area and the aspect ratio is within the specified range
-        if w * h > min_area and min_aspect_ratio <= aspect_ratio <= max_aspect_ratio:
-            # Add the rectangle to the mask, but only the outline with the specified line thickness
-            cv2.rectangle(mask, pt1 =(x, y), pt2=(x+w, y+h), color=255, thickness=line_thickness, lineType= 8)  #lineType is the thickness of the line so that the mask is not filled
-
-    # Inpaint the image using the mask
-    inpainted_image = cv2.inpaint(image, mask, inpaint_radius, cv2.INPAINT_TELEA)
-
-    # Save the result
-    result_path = os.path.splitext(image_path)[0] + '_boxes_removed.png'
-    cv2.imwrite(result_path, inpainted_image)
-
-    return result_path
-
 def remove_lines(image_path, left_margin, min_width, min_height, max_width, max_height):
     #remove the left margin
     image = erase_left_margin(image_path, left_margin)
@@ -195,7 +109,7 @@ def remove_lines(image_path, left_margin, min_width, min_height, max_width, max_
             rectangles.append([x, y, x + w, y + h])
     
     # Merge overlapping boxes
-    rectangles, weights = cv2.groupRectangles(rectangles, groupThreshold=1, eps=0.2)
+    #rectangles, weights = cv2.groupRectangles(rectangles, groupThreshold=1, eps=0.2)
     
     for rect in rectangles:
         #color = white

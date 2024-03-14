@@ -5,7 +5,7 @@ from PIL import Image
 from pdf2image import convert_from_path
 from pdf_processor import extract_text_from_pdf
 from ocr_engine import ocr_image
-from image_preprocessor import deskew_image, remove_lines, detect_and_remove_boxes, detect_and_visualize_boxes, threshold_image
+from image_preprocessor import deskew_image, remove_lines, threshold_image
 from post_processor import correct_ocr_errors, remove_unwanted_characters
 from skimage.color import rgb2gray
 
@@ -28,10 +28,7 @@ def preprocess_image(image_path):
     processed_image_path = threshold_image(image_path, threshold=0.4)
     #processed_image_path = binarize_image(processed_image_path)
     processed_image_path = deskew_image(processed_image_path)   
-    #processed_image_path = detect_and_visualize_boxes(processed_image_path, 8, 8000, .1, 20)
-    #processed_image_path = detect_and_remove_boxes(processed_image_path, 30, 8000, .1, 20, 3)
-    processed_image_path = remove_lines(processed_image_path,left_margin=200, min_width=0, min_height=0, max_width= 1000, max_height=200)
-    #processed_image_path = remove_lines(processed_image_path, 200, 8)
+    processed_image_path = remove_lines(processed_image_path,left_margin=200, min_width=0, min_height=0, max_width= 1000, max_height=400)
     
     print(f"Processed image path3: {processed_image_path}")
     return processed_image_path
