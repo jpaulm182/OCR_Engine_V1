@@ -51,6 +51,7 @@ def preprocess_images_in_parallel(image_paths):
     with concurrent.futures.ProcessPoolExecutor() as executor:
         processed_image_paths = list(executor.map(preprocess_image, image_paths))
     return processed_image_paths
+
 def postprocess_ocr_result(ocr_result):
     corrected_text = correct_ocr_errors(ocr_result)
     cleaned_text = remove_unwanted_characters(corrected_text)
