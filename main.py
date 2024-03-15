@@ -16,7 +16,7 @@ import time
 from PyPDF2 import PdfReader
 from pdf2image import convert_from_path
 import threading
-
+import concurrent.futures
 # Create a lock
 lock = threading.Lock()
 
@@ -41,6 +41,14 @@ def convert_pdf_to_images_parallel(pdf_path, output_dir, dpi=350):
     return image_paths
 
 def preprocess_image(image_path): 
+    """Preprocesses an image by applying various image processing techniques.
+
+    Args:
+        image_path (str): The path to the input image file.
+
+    Returns:
+        str: The path to the preprocessed image file.
+    """    
     # Adjust path to normal format for the operating system
     image_path = os.path.normpath(image_path) 
     processed_image_path = threshold_image(image_path, threshold=0.4)
@@ -51,11 +59,29 @@ def preprocess_image(image_path):
     return processed_image_path
 
 def preprocess_images_in_parallel(image_paths):
+    """
+    Preprocesses a list of images in parallel using multiple processes.
+
+    Args:
+        image_paths (list): A list of file paths to the images.
+
+    Returns:
+        list: A list of file paths to the preprocessed images.
+    """
     with concurrent.futures.ProcessPoolExecutor() as executor:
         processed_image_paths = list(executor.map(preprocess_image, image_paths))
     return processed_image_paths
 
 def postprocess_ocr_result(ocr_result):
+    """
+    Postprocesses the OCR result by correcting errors and removing unwanted characters.
+
+    Args:
+        ocr_result (str): The OCR result to be postprocessed.
+
+    Returns:
+        str: The cleaned and processed OCR result.
+    """
     corrected_text = correct_ocr_errors(ocr_result)
     cleaned_text = remove_unwanted_characters(corrected_text)
     return cleaned_text
@@ -72,6 +98,16 @@ def save_cleaned_text(cleaned_text, image_path, pdf_path):
 
 
 def process_image(args):
+    """
+    Process an image using OCR (Optical Character Recognition) and return the cleaned text.
+
+    Args:
+        args (tuple): A tuple containing the page number, image path, and PDF path.
+
+    Returns:
+        tuple: A tuple containing the page number and cleaned text.
+
+    """
     page, image_path, pdf_path = args
     processed_image_path = preprocess_image(image_path)        
 
@@ -85,7 +121,7 @@ def process_image(args):
 
     cleaned_text = postprocess_ocr_result(ocr_result)
     # No need to save the cleaned text here as it will be saved later in the correct order
-    return (page, cleaned_text) 
+    return (page, cleaned_text)
 
 def get_num_pages(pdf_path):
     pdf = PdfReader(pdf_path)
@@ -105,6 +141,15 @@ def convert_pdf_to_images_parallel(pdf_path, output_dir):
     return image_paths
 
 def process_pdf_document(pdf_path):
+    """
+    Process a PDF document by extracting text from each page and saving the concatenated text to a file.
+
+    Args:
+        pdf_path (str): The path to the PDF document.
+
+    Returns:
+        None
+    """
     start_time = time.time()
     print(f"Processing file: {pdf_path}")
     output_dir = os.path.join(os.path.dirname(pdf_path), 'image_output')

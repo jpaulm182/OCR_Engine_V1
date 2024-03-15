@@ -13,6 +13,15 @@ from skimage.color import rgba2rgb, rgb2gray
 from scipy.ndimage import interpolation as inter
 
 def calculate_skew(image):
+    """
+    Calculates the skew angle of an image.
+
+    Parameters:
+    image (numpy.ndarray): The input image.
+
+    Returns:
+    float: The skew angle of the image.
+    """
     # convert to binary
     image = cv2.bitwise_not(image)
     threshold = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
@@ -25,6 +34,16 @@ def calculate_skew(image):
     return skew
 
 def threshold_image(image_path, threshold=0.5) -> str:
+    """
+    Thresholds the input image using the most robust and effective method.
+
+    Args:
+        image_path (str): The path to the input image file.
+        threshold (float): The threshold value for binarization. Defaults to 0.5.
+
+    Returns:
+        str: The path to the thresholded image file.
+    """
     #threshold the image using the most robust and effective method
     image = io.imread(image_path)
     if len(image.shape) == 3 and image.shape[2] == 4:
@@ -48,6 +67,19 @@ def binarize_image(image_path):
         gray = rgb2gray(image)
 
 def deskew_image(image_path):
+    """
+    Deskews an image by calculating the skew angle and correcting it.
+
+    Args:
+        image_path (str): The path to the input image file.
+
+    Returns:
+        str: The path to the deskewed image file.
+
+    Raises:
+        None
+
+    """
     #the image must be 3 channel (RGB) for the deskew function to work
     image = io.imread(image_path)
     if len(image.shape) == 3 and image.shape[2] == 4:
@@ -89,6 +121,20 @@ def erase_left_margin(image_path, left_margin):
     return image
 
 def remove_lines(image_path, left_margin, min_width, min_height, max_width, max_height):
+    """
+    Removes lines from an image based on specified criteria.
+
+    Args:
+        image_path (str): The path to the input image file.
+        left_margin (int): The width of the left margin to be removed.
+        min_width (int): The minimum width of a bounding box to be considered.
+        min_height (int): The minimum height of a bounding box to be considered.
+        max_width (int): The maximum width of a bounding box to be considered.
+        max_height (int): The maximum height of a bounding box to be considered.
+
+    Returns:
+        str: The path to the output image file with lines removed.
+    """
     #remove the left margin
     image = erase_left_margin(image_path, left_margin)
     #convert the image to a numpy array
