@@ -13,7 +13,8 @@ def correct_ocr_errors(text):
         'S.': '5.',
         '|.' : 'I.',
         '|' : '',
-        '¢' : '* '
+        '¢' : '* ',
+        '_' : ''
     }
     
     corrected_text = "".join([corrections.get(char, char) for char in text])

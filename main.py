@@ -15,6 +15,10 @@ import multiprocessing
 import time
 from PyPDF2 import PdfReader
 from pdf2image import convert_from_path
+import threading
+
+# Create a lock
+lock = threading.Lock()
 
 def ensure_directory_exists(directory):
     if not os.path.exists(directory):
@@ -43,7 +47,6 @@ def preprocess_image(image_path):
     #processed_image_path = binarize_image(processed_image_path)
     processed_image_path = deskew_image(processed_image_path)   
     processed_image_path = remove_lines(processed_image_path,left_margin=5, min_width=0, min_height=0, max_width= 3500, max_height=200)
-    processed_image_path = deskew_image(processed_image_path)
     print(f"Processed image path3: {processed_image_path}")
     return processed_image_path
 
@@ -67,14 +70,22 @@ def save_cleaned_text(cleaned_text, image_path, pdf_path):
     with open(f"{os.path.splitext(pdf_path)[0]}_compiled.txt", "a") as compiled_file:
         compiled_file.write(cleaned_text)
 
+
 def process_image(args):
     page, image_path, pdf_path = args
     processed_image_path = preprocess_image(image_path)        
-    ocr_result = ocr_image(processed_image_path)
+
+    # Acquire the lock before calling ocr_image
+    lock.acquire()
+    try:
+        ocr_result = ocr_image(processed_image_path)
+    finally:
+        # Always release the lock after the function call
+        lock.release()
+
     cleaned_text = postprocess_ocr_result(ocr_result)
     # No need to save the cleaned text here as it will be saved later in the correct order
-    return (page, cleaned_text)
- 
+    return (page, cleaned_text) 
 
 def get_num_pages(pdf_path):
     pdf = PdfReader(pdf_path)
