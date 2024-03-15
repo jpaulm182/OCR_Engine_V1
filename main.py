@@ -42,7 +42,7 @@ def preprocess_image(image_path):
     processed_image_path = threshold_image(image_path, threshold=0.4)
     #processed_image_path = binarize_image(processed_image_path)
     processed_image_path = deskew_image(processed_image_path)   
-    processed_image_path = remove_lines(processed_image_path,left_margin=200, min_width=0, min_height=0, max_width= 3500, max_height=200)
+    processed_image_path = remove_lines(processed_image_path,left_margin=100, min_width=0, min_height=0, max_width= 3500, max_height=200)
     processed_image_path = deskew_image(processed_image_path)
     print(f"Processed image path3: {processed_image_path}")
     return processed_image_path
