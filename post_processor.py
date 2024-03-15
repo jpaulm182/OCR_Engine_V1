@@ -10,17 +10,16 @@ def correct_ocr_errors(text):
     # Example corrections; these should be expanded based on common OCR errors observed in the output
     corrections = {
         #add a match for a line break followed by e and a space      
-        '.I.': '.1.',
-        'I.': '1 ',
-        ' I': ' 1',
         'S.': '5.',
-        ' I ': ' 1 ',
         '|.' : 'I.',
-        '|' : ''
+        '|' : '',
+        '¢' : '* '
     }
     
     corrected_text = "".join([corrections.get(char, char) for char in text])
     return corrected_text
+
+import re
 
 def remove_unwanted_characters(text):
     """
@@ -31,11 +30,12 @@ def remove_unwanted_characters(text):
     """
     
     # Define a regex pattern for allowed characters; this can be adjusted
-    # Also include patterns for any instance of three of the same character in a row, spaces, and three periods in a row
-    pattern = re.compile(r'(\w)\1{2,}|(\W)\2{2,}')  
+    # Also include patterns for any instance of five of the same character in a row, spaces, and three periods in a row
+    pattern1 = re.compile(r'(\w)\1{4,}|(\W)\2{4,}')  
     #add a pattern to remove any word starting with a lowercase letter than is more than 10 characters long
-    pattern = re.compile(r'\b[a-z]\w{18,}\b')  
-    cleaned_text = re.sub(pattern, '', text)    
+    pattern2 = re.compile(r'\b[a-z]\w{18,}\b')  
+    cleaned_text = re.sub(pattern1, '', text)    
+    cleaned_text = re.sub(pattern2, '', cleaned_text)
 
     # Replace 'e ' that represents bullet points with '*'
     bullet_point_pattern = re.compile(r'(^e |(?<=\n)e )')
