@@ -42,7 +42,7 @@ def preprocess_image(image_path):
     processed_image_path = threshold_image(image_path, threshold=0.4)
     #processed_image_path = binarize_image(processed_image_path)
     processed_image_path = deskew_image(processed_image_path)   
-    processed_image_path = remove_lines(processed_image_path,left_margin=100, min_width=0, min_height=0, max_width= 3500, max_height=200)
+    processed_image_path = remove_lines(processed_image_path,left_margin=5, min_width=0, min_height=0, max_width= 3500, max_height=200)
     processed_image_path = deskew_image(processed_image_path)
     print(f"Processed image path3: {processed_image_path}")
     return processed_image_path
@@ -72,8 +72,9 @@ def process_image(args):
     processed_image_path = preprocess_image(image_path)        
     ocr_result = ocr_image(processed_image_path)
     cleaned_text = postprocess_ocr_result(ocr_result)
-    save_cleaned_text(cleaned_text, image_path, pdf_path)
-    return page, cleaned_text
+    # No need to save the cleaned text here as it will be saved later in the correct order
+    return (page, cleaned_text)
+ 
 
 def get_num_pages(pdf_path):
     pdf = PdfReader(pdf_path)
@@ -101,15 +102,18 @@ def process_pdf_document(pdf_path):
     image_paths = convert_pdf_to_images_parallel(pdf_path, output_dir)
     # Create a list of tuples to pass to pool.map
     args = [(i, image_path, pdf_path) for i, image_path in enumerate(image_paths, start=1)]
+    
     with multiprocessing.Pool() as pool:
         results = pool.map(process_image, args)
 
-    # Sort the results by page number
+    # Sort the results based on page numbers
     results.sort(key=lambda x: x[0])
 
-    # Extract the cleaned texts and join them together
-    cleaned_texts = [result[1] for result in results]
-    save_extracted_text(''.join(cleaned_texts), pdf_path)
+    # Concatenate the texts in the correct order
+    concatenated_text = ''.join([result[1] for result in results])
+
+    # Save the concatenated text to a file
+    save_extracted_text(concatenated_text, pdf_path)
     end_time = time.time()
     print("All files processed successfully")
     print(f"Time taken: {end_time - start_time} seconds")
