@@ -13,7 +13,7 @@ from skimage.color import rgb2gray
 import concurrent.futures
 import multiprocessing
 import time
-from PyPDF2 import PdfFileReader
+from PyPDF2 import PdfReader
 from pdf2image import convert_from_path
 
 def ensure_directory_exists(directory):
@@ -68,17 +68,16 @@ def save_cleaned_text(cleaned_text, image_path, pdf_path):
         compiled_file.write(cleaned_text)
 
 def process_image(args):
-    image_path, pdf_path = args
+    page, image_path, pdf_path = args
     processed_image_path = preprocess_image(image_path)        
     ocr_result = ocr_image(processed_image_path)
     cleaned_text = postprocess_ocr_result(ocr_result)
     save_cleaned_text(cleaned_text, image_path, pdf_path)
-    return cleaned_text
+    return page, cleaned_text
 
 def get_num_pages(pdf_path):
-    with open(pdf_path, 'rb') as file:
-        pdf = PdfFileReader(file)
-        return pdf.getNumPages()
+    pdf = PdfReader(pdf_path)
+    return len(pdf.pages)
 
 def convert_page_to_image(args):
     page, pdf_path, output_dir = args
@@ -101,11 +100,16 @@ def process_pdf_document(pdf_path):
     extracted_text = extract_text_from_pdf(pdf_path)
     image_paths = convert_pdf_to_images_parallel(pdf_path, output_dir)
     # Create a list of tuples to pass to pool.map
-    args = [(image_path, pdf_path) for image_path in image_paths]
+    args = [(i, image_path, pdf_path) for i, image_path in enumerate(image_paths, start=1)]
     with multiprocessing.Pool() as pool:
-        cleaned_texts = pool.map(process_image, args)
+        results = pool.map(process_image, args)
 
-    save_extracted_text(extracted_text, pdf_path)
+    # Sort the results by page number
+    results.sort(key=lambda x: x[0])
+
+    # Extract the cleaned texts and join them together
+    cleaned_texts = [result[1] for result in results]
+    save_extracted_text(''.join(cleaned_texts), pdf_path)
     end_time = time.time()
     print("All files processed successfully")
     print(f"Time taken: {end_time - start_time} seconds")

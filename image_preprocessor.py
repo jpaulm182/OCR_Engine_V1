@@ -113,7 +113,7 @@ def remove_lines(image_path, left_margin, min_width, min_height, max_width, max_
     
     for rect in rectangles:
         #color = white
-        color = (255, 255, 255)
+        color: tuple[Literal[255], Literal[255], Literal[255]] = (255, 255, 255)
         cv2.rectangle(mask, pt1=(rect[0], rect[1]), pt2=(rect[2], rect[3]), color = color, thickness=-1, lineType=8)
     
     # Convert the mask to grayscale
