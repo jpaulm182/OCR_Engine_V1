@@ -13,6 +13,8 @@ from skimage.color import rgb2gray
 import concurrent.futures
 import multiprocessing
 import time
+from PyPDF2 import PdfFileReader
+from pdf2image import convert_from_path
 
 def ensure_directory_exists(directory):
     if not os.path.exists(directory):
@@ -71,6 +73,24 @@ def process_image(args):
     cleaned_text = postprocess_ocr_result(ocr_result)
     save_cleaned_text(cleaned_text, image_path, pdf_path)
     return cleaned_text
+
+def get_num_pages(pdf_path):
+    with open(pdf_path, 'rb') as file:
+        pdf = PdfFileReader(file)
+        return pdf.getNumPages()
+
+def convert_page_to_image(args):
+    page, pdf_path, output_dir = args
+    images = convert_from_path(pdf_path, first_page=page, last_page=page)
+    image_path = f"{output_dir}/image_{page}.png"
+    images[0].save(image_path, 'PNG')
+    return image_path
+
+def convert_pdf_to_images_parallel(pdf_path, output_dir):
+    num_pages = get_num_pages(pdf_path)
+    with multiprocessing.Pool() as pool:
+        image_paths = pool.map(convert_page_to_image, [(i, pdf_path, output_dir) for i in range(1, num_pages + 1)])
+    return image_paths
 
 def process_pdf_document(pdf_path):
     start_time = time.time()
