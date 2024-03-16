@@ -1,22 +1,18 @@
 import os
+import time
+import threading
+import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
-from pdf2image import convert_from_path
 import tkinter as tk
 from tkinter import filedialog
 from PIL import Image
+from skimage.color import rgb2gray
+from PyPDF2 import PdfReader
 from pdf2image import convert_from_path
 from pdf_processor import extract_text_from_pdf
 from ocr_engine import ocr_image
 from image_preprocessor import deskew_image, remove_lines, threshold_image
 from post_processor import correct_ocr_errors, remove_unwanted_characters
-from skimage.color import rgb2gray
-import concurrent.futures
-import multiprocessing
-import time
-from PyPDF2 import PdfReader
-from pdf2image import convert_from_path
-import threading
-import concurrent.futures
 # Create a lock
 lock = threading.Lock()
 
@@ -154,6 +150,14 @@ def process_pdf_document(pdf_path):
     print(f"Processing file: {pdf_path}")
     output_dir = os.path.join(os.path.dirname(pdf_path), 'image_output')
     ensure_directory_exists(output_dir)
+    #If the output directory already exists, delete the contents
+    for file in os.listdir(output_dir):
+        file_path = os.path.join(output_dir, file)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+        except Exception as e:
+            print(e)
     extracted_text = extract_text_from_pdf(pdf_path)
     image_paths = convert_pdf_to_images_parallel(pdf_path, output_dir)
     # Create a list of tuples to pass to pool.map
