@@ -1,7 +1,11 @@
 import os
 import time
 import threading
+import fitz
+import imutils
 import multiprocessing
+import pytesseract
+import concurrent.futures
 from concurrent.futures import ProcessPoolExecutor
 import tkinter as tk
 from tkinter import filedialog
