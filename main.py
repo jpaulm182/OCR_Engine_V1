@@ -20,6 +20,8 @@ from post_processor import correct_ocr_errors, remove_unwanted_characters
 # Create a lock
 lock = threading.Lock()
 
+VERSION = 1.0
+
 def ensure_directory_exists(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
