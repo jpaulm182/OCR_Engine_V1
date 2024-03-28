@@ -1,15 +1,14 @@
 import os
 import time
 import threading
-import fitz
-import imutils
+#import fitz
+#import imutils
 import multiprocessing
-import pytesseract
 import concurrent.futures
 from concurrent.futures import ProcessPoolExecutor
 import tkinter as tk
 from tkinter import filedialog
-from PIL import Image
+from PIL import Image # Python Imaging Library
 from skimage.color import rgb2gray
 from PyPDF2 import PdfReader
 from pdf2image import convert_from_path
